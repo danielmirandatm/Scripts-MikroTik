@@ -1,0 +1,26 @@
+# ==========================
+# VPN TEST MK - v1
+# 18/04/19 - DANIEL MIRANDA
+#===========================
+
+:global u
+/interface l2tp-client monitor l2tp-out1 once do={
+	:set u $status
+}
+
+:if ($u != "connected") do={
+
+	:if ([put [/ip dns get servers]] != "") do={
+		:log warning "Interface l2tp desconectada"
+		:log warning "Alterando DNS para dinâmico"
+		:ip dns set servers=""
+	}
+
+} else={
+
+	:if ([put [/ip dns get servers]] != "10.15.0.1") do={
+		
+		:log warning "DNS incorreto! Alterando para 10.15.0.1"
+		:ip dns set servers="10.15.0.1"
+	}
+}

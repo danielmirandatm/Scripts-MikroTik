@@ -1,0 +1,132 @@
+# ==========================
+# PING TEST MK - v1
+# 09/04/18 - DANIEL MIRANDA
+#===========================
+
+:local date [:pick [/system clock get date] 4 6]
+:local time [:pick [/system clock get time] 0 2]
+:local filemain "pingtest.txt"
+:local filetime "pingtime.txt"
+:local filedate "pingdate.txt"
+:global flagdate "0"
+:global flagtime "0"
+
+:if ([/file find name~"pingtestlog"] = "") do={
+		/system logging action add name=pingtestlog target=disk disk-file-name=pingtestlog disk-lines-per-file=300
+		/system logging add topics=script action=pingtestlog
+}
+
+:if ([/file find name=$filemain] = "") do={
+	/system identity print file=$filemain
+	:delay 2s
+	/file set $filemain contents="0"	
+}
+
+:local flagmain [:put [/file get [/file find where name=$filemain] contents]]
+
+:log info "[pingtest] Iniciando teste de ping"
+
+:local test [/ping 8.8.8.8 count=10]
+
+:if ($test < 7) do={
+	:log warning "[pingtest] Sem conexao, testando novamente em 10 segundos! (1)"
+	:delay 10s
+	:local test [/ping 8.8.8.8 count=10]
+	
+	:if ($test < 7) do={
+		:log warning "[pingtest] Sem conexao, testando novamente em 10 segundos! (2)"
+		:delay 10s
+		:local test [/ping 8.8.8.8 count=10]
+		
+		:if ($test < 7) do={
+						
+			:if ($flagmain < 10) do={
+				:log warning "[pingtest] Sem conexao! (3)"
+				:log warning "[pingtest] Reiniciando porta USB"      
+				/system routerboard usb power-reset duration=30s
+				:local soma [:put ($flagmain + 1)]
+				/file set $filemain contents=$soma
+				
+			} else={
+				
+				:if ([/file find name=$filetime] = "") do={
+					/system identity print file=$filetime
+					:delay 2s
+					/file set $filetime contents=$time
+					:global flagtime $time
+				} else={
+					:global flagtime [:put [/file get [/file find where name=$filetime] contents]]
+				}
+				
+				:if ([/file find name=$filedate] = "") do={
+					/system identity print file=$filedate
+					:delay 2s
+					/file set $filedate contents=$date
+					:global flagdate $date
+				} else={
+					:global flagdate [:put [/file get [/file find where name=$filedate] contents]]
+				}
+				
+				:if ($flagdate = $date) do={
+						:log warning "[pingtest] Ainda não estourou as 24h!"
+				} else={
+					
+					:if ([:put ($date-$flagdate)] > 1) do={
+						/file remove $filetime
+						/file remove $filedate
+						/file set $filemain contents="0"
+						
+					} else={
+						:if ([:put ($date-$flagdate)] < -1) do={
+							/file remove $filetime
+							/file remove $filedate
+							/file set $filemain contents="0"
+							
+						} else={
+							:if ($flagtime = $time) do={
+								/file remove $filetime
+								/file remove $filedate
+								/file set $filemain contents="0"
+							} else={
+								:if ([:put ($time-$flagtime)] > 0) do={ 
+									/file remove $filetime
+									/file remove $filedate
+									/file set $filemain contents="0"
+								} else={
+									:log warning "[pingtest] Ainda não estourou as 24h!"
+								}
+							}
+						}
+					}
+				}
+			}
+		} else={
+			:if ([/file find name=$filetime] != "") do={
+				/file remove $filetime	
+				/file remove $filedate
+				:log info "[pingtest] Conexao Retornou antes das 24h! (3)"
+			} else={
+				:log info "[pingtest] Conexao ok! (3)"
+			}
+			/file set $filemain contents="0"
+		}
+	} else={
+		:if ([/file find name=$filetime] != "") do={
+			/file remove $filetime	
+			/file remove $filedate
+			:log info "[pingtest] Conexao Retornou antes das 24h! (2)"
+		} else={
+			:log info "[pingtest] Conexao ok! (2)"
+		}
+		/file set $filemain contents="0"
+	}
+} else={
+	:if ([/file find name=$filetime] != "") do={
+		/file remove $filetime	
+		/file remove $filedate
+		:log info "[pingtest] Conexao Retornou antes das 24h! (1)"
+	} else={
+		:log info "[pingtest] Conexao ok! (1)"
+	}
+	/file set $filemain contents="0"
+}

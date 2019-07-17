@@ -1,0 +1,10 @@
+:global cpuload "0"
+
+:set cpuload [/system resource get cpu-load]
+
+:if ([/file find name~"usagecpu"] = "") do={
+		/system logging action add name=usagecpulog target=disk disk-file-name=usagecpulog disk-lines-per-file=300
+		/system logging add topics=script action=usagecpulog
+}
+
+:log info "$cpuload"
